@@ -1,47 +1,54 @@
-import { NextResponse } from 'next/server';
-import { getServiceClient } from '@/lib/supabase';
+import { NextResponse } from "next/server";
+import { getServiceClient } from "@/lib/supabase";
+import { syncEmails } from "@/lib/email-sync";
 
-// This endpoint will be called by Vercel cron or manually
-// The actual email sync will be handled by a Python script
-// For now, this is a placeholder that can trigger the sync
-
-export async function POST(request: Request) {
-  // Verify this is from a cron job or authenticated request
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  // Allow if cron secret matches, or if it's a local dev request
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+export async function POST() {
   try {
-    // In production, this would call the Python sync script
-    // For now, return status from the database
+    // Run the TypeScript email sync
+    const result = await syncEmails();
+
+    // Get current workout count
     const supabase = getServiceClient();
-
-    const { count, error } = await supabase
-      .from('workouts')
-      .select('*', { count: 'exact', head: true });
-
-    if (error) {
-      throw error;
-    }
+    const { count: totalWorkouts } = await supabase
+      .from("workouts")
+      .select("*", { count: "exact", head: true });
 
     return NextResponse.json({
-      message: 'Sync endpoint ready',
-      currentRecords: count,
-      note: 'Run scripts/sync_emails.py to sync emails',
+      success: result.success,
+      message: result.message,
+      details: result.details,
+      totalWorkouts,
+      newWorkouts: result.inserted,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500 },
+    );
   }
 }
 
 export async function GET() {
-  return NextResponse.json({
-    status: 'ready',
-    message: 'POST to this endpoint to trigger sync',
-  });
+  try {
+    const supabase = getServiceClient();
+
+    const { data, error } = await supabase
+      .from("workouts")
+      .select("workout_date")
+      .order("workout_date", { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+
+    const lastSync = data?.[0]?.workout_date || null;
+
+    return NextResponse.json({
+      status: "ready",
+      lastWorkoutDate: lastSync,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

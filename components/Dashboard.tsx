@@ -28,6 +28,11 @@ export default function Dashboard({ onLogout }: DashboardProps) {
   const [selectedMetrics, setSelectedMetrics] = useState<TrendMetric[]>([
     "treadmill",
   ]);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchWorkouts();
@@ -59,6 +64,33 @@ export default function Dashboard({ onLogout }: DashboardProps) {
       return [...prev, metric];
     });
   }, []);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncMessage(null);
+
+    try {
+      const res = await fetch("/api/sync", { method: "POST" });
+      const data = await res.json();
+
+      if (data.success) {
+        setSyncMessage({ type: "success", text: data.message });
+        // Refresh workouts data
+        await fetchWorkouts();
+      } else {
+        setSyncMessage({
+          type: "error",
+          text: data.message || "Sync failed",
+        });
+      }
+    } catch {
+      setSyncMessage({ type: "error", text: "Failed to sync" });
+    } finally {
+      setSyncing(false);
+      // Clear message after 5 seconds
+      setTimeout(() => setSyncMessage(null), 5000);
+    }
+  };
 
   if (loading) {
     return (
@@ -311,14 +343,51 @@ export default function Dashboard({ onLogout }: DashboardProps) {
         style={{ borderTop: "1px solid var(--border)" }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p
-            className="text-center text-sm"
-            style={{ color: "var(--text-muted)" }}
-          >
-            {workouts.length} workouts tracked &middot; {weeklyAvg.perWeek}{" "}
-            workouts/week avg &middot; Last sync:{" "}
-            {workouts[0]?.workout_date || "Never"}
-          </p>
+          <div className="flex flex-col items-center gap-4">
+            <p
+              className="text-center text-sm"
+              style={{ color: "var(--text-muted)" }}
+            >
+              {workouts.length} workouts tracked &middot; {weeklyAvg.perWeek}{" "}
+              workouts/week avg &middot; Last workout:{" "}
+              {workouts[0]?.workout_date || "Never"}
+            </p>
+
+            <div className="flex flex-col items-center gap-2">
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 flex items-center gap-2"
+                style={{
+                  background: syncing ? "var(--border)" : "var(--primary)",
+                  color: syncing ? "var(--text-secondary)" : "#FFFFFF",
+                }}
+              >
+                {syncing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    Syncing emails...
+                  </>
+                ) : (
+                  "Sync from Email"
+                )}
+              </button>
+
+              {syncMessage && (
+                <p
+                  className="text-sm"
+                  style={{
+                    color:
+                      syncMessage.type === "success"
+                        ? "var(--accent-green)"
+                        : "var(--accent-red)",
+                  }}
+                >
+                  {syncMessage.text}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       </footer>
     </div>
