@@ -1,36 +1,116 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OTF Tracker
 
-## Getting Started
+A personal dashboard to track your Orangetheory Fitness workout stats with beautiful visualizations.
 
-First, run the development server:
+## Features
+
+- Scrapes OTF "Performance Summary" emails from Gmail
+- Tracks treadmill distance, rower distance, splat points, and calories
+- Rich dashboard with trend charts, stats cards, and calendar heatmap
+- Simple password protection
+- Mobile-responsive design
+- Daily auto-sync via Vercel cron
+
+## Setup
+
+### 1. Create Supabase Database
+
+1. Go to [supabase.com](https://supabase.com) and create a new project
+2. Go to SQL Editor and run the contents of `supabase-schema.sql`
+3. Get your project URL and keys from Settings > API
+
+### 2. Configure Gmail
+
+1. Go to [Google Account Security](https://myaccount.google.com/security)
+2. Enable 2-Factor Authentication if not already enabled
+3. Go to App Passwords and generate a new password for "Mail"
+4. Save this 16-character password
+
+### 3. Set Environment Variables
+
+Create `.env.local` from the example:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Fill in your values:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_KEY=your-service-key
+EMAIL_USER=your.email@gmail.com
+EMAIL_PASS=your-app-password
+SITE_PASSWORD=your-dashboard-password
+```
+
+### 4. Install Dependencies
+
+```bash
+npm install
+```
+
+For the Python sync script:
+
+```bash
+pip install -r scripts/requirements.txt
+```
+
+### 5. Run Initial Sync
+
+Import your historical OTF emails:
+
+```bash
+python scripts/sync_emails.py
+```
+
+### 6. Start Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) and enter your site password.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy to Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Push to GitHub
+2. Import project in Vercel
+3. Add all environment variables in Vercel project settings
+4. Deploy
 
-## Learn More
+The daily sync cron job is configured in `vercel.json` to run at 8 AM UTC.
 
-To learn more about Next.js, take a look at the following resources:
+## Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+otf-tracker/
+├── app/
+│   ├── page.tsx              # Main dashboard
+│   └── api/
+│       ├── workouts/         # Workout data API
+│       ├── auth/             # Authentication
+│       └── sync/             # Sync trigger
+├── components/
+│   ├── Dashboard.tsx         # Main layout
+│   ├── StatsCards.tsx        # Summary metrics
+│   ├── TrendChart.tsx        # Distance trends
+│   ├── WorkoutTable.tsx      # History table
+│   └── CalendarHeatmap.tsx   # Frequency visual
+├── lib/
+│   ├── supabase.ts           # Database client
+│   ├── types.ts              # TypeScript types
+│   └── utils.ts              # Utilities
+└── scripts/
+    └── sync_emails.py        # Email scraper
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Tech Stack
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Next.js 14 (App Router)
+- React + TypeScript
+- Tailwind CSS
+- Recharts
+- Supabase (PostgreSQL)
+- Vercel
